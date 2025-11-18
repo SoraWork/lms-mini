@@ -163,6 +163,14 @@ public class StudentServiceImpl implements StudentService {
         // Update thông tin cơ bản
         studentMapper.updateStudent(student, request);
 
+        //Lay ra list imgid de so sanh
+        List<Long> currentImageIds = Arrays.stream(
+                        Optional.ofNullable(student.getImageIds()).orElse("")
+                                .split(","))
+                .filter(s -> !s.isBlank())
+                .map(Long::parseLong)
+                .collect(Collectors.toList());
+
         // Xử lý xóa ảnh nếu có deleteImageIds (soft delete)
         if(request.getDeleteImageIds() != null && !request.getDeleteImageIds().isEmpty()) {
             List<Image> imagesToDelete = imageRepository.findAllById(request.getDeleteImageIds());
@@ -182,9 +190,16 @@ public class StudentServiceImpl implements StudentService {
                 img.setStatus("1");
                 newImages.add(img);
             }
-            imageRepository.saveAll(newImages);
+            newImages = imageRepository.saveAll(newImages);
+            // Thêm id ảnh mới vào list
+            currentImageIds.addAll(newImages.stream().map(Image::getId).toList());
         }
-
+        //cap nhat lại list imgids
+        if (!currentImageIds.isEmpty()) {
+            student.setImageIds(currentImageIds.stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(",")));
+        }
         // Lưu student
         student = studentRepository.save(student);
 
