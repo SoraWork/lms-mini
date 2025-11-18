@@ -22,4 +22,6 @@ public class CourseCreateRequest {
     @Size(min = 3, max = 20, message = "Code phải từ 3–20 ký tự")
     private String code;
 
+    private List<LessonCreateRequest> lessons;
+
 }

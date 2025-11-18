@@ -160,7 +160,7 @@ public class StudentServiceImpl implements StudentService {
             throw new RuntimeException("Email đã tồn tại");
         }
 
-        // Update thông tin cơ bản bằng MapStruct
+        // Update thông tin cơ bản
         studentMapper.updateStudent(student, request);
 
         // Xử lý xóa ảnh nếu có deleteImageIds (soft delete)
