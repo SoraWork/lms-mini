@@ -28,6 +28,7 @@ public interface StudentMapper {
     // ENTITY → RESPONSE
     @Mapping(target = "images", expression = "java(imageMapper.toResponseList(images))")
     @Mapping(target = "totalEnrollments", expression = "java(totalEnrollments)")
+    @Mapping(target = "courses", ignore = true)
     StudentResponse toResponse(Student student,
                                List<Image> images,
                                Integer totalEnrollments,

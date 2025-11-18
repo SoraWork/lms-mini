@@ -19,6 +19,8 @@ public class StudentResponse {
 
     private List<ImageResponse> images;
 
+    private List<CourseSummaryResponse> courses;
+
     private Integer totalEnrollments;
 
     private String status;
