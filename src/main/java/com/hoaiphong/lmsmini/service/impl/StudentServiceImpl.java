@@ -96,21 +96,33 @@ public class StudentServiceImpl implements StudentService {
             ));
         }
 
-        List<Long> studentIds = students.stream().map(Student::getId).toList();
+        //Tập hợp tất cả imageIds từ students
+        List<Long> allImageIds = students.stream()
+                .flatMap(s -> Arrays.stream(Optional.ofNullable(s.getImageIds()).orElse("").split(",")))
+                .filter(str -> !str.isBlank())
+                .map(Long::valueOf)
+                .toList();
 
-        // Lấy ảnh của tất cả students
-        List<Image> images = imageRepository.findByObjectIdsAndStatus(studentIds);
-        Map<Long, List<Image>> imagesMap = images.stream()
-                .collect(Collectors.groupingBy(Image::getObjectId));
+        // Lấy tất cả ảnh/video theo ids
+        List<Image> allImages = allImageIds.isEmpty() ? List.of() : imageRepository.findByIds(allImageIds);
 
         // Lấy enrollments + course
+        List<Long> studentIds = students.stream().map(Student::getId).toList();
         List<Enrollment> enrollments = enrollmentRepository.findByStudentIdIn(studentIds);
         Map<Long, List<Enrollment>> enrollmentsMap = enrollments.stream()
                 .collect(Collectors.groupingBy(e -> e.getStudent().getId()));
 
-        // Map từng student → StudentResponse
+        //  Map từng student → StudentResponse
         List<StudentResponse> studentResponses = students.stream().map(student -> {
-            List<Image> studentImages = imagesMap.getOrDefault(student.getId(), List.of());
+            List<Long> studentImageIds = Arrays.stream(Optional.ofNullable(student.getImageIds()).orElse("").split(","))
+                    .filter(s -> !s.isBlank())
+                    .map(Long::valueOf)
+                    .toList();
+
+            List<Image> studentImages = allImages.stream()
+                    .filter(img -> studentImageIds.contains(img.getId()) && "1".equals(img.getStatus()))
+                    .toList();
+
             List<Enrollment> studentEnrollments = enrollmentsMap.getOrDefault(student.getId(), List.of());
 
             StudentResponse response = studentMapper.toResponse(
@@ -133,7 +145,6 @@ public class StudentServiceImpl implements StudentService {
             return response;
         }).toList();
 
-        // Trả về PageResponse
         return new PageResponse<>(
                 studentResponses,
                 new PageResponse.Pagination(
@@ -146,7 +157,6 @@ public class StudentServiceImpl implements StudentService {
                 )
         );
     }
-
     @Override
     @Transactional
     public StudentResponse updateStudent(Long id, StudentUpdateRequest request, List<MultipartFile> images) {

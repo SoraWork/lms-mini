@@ -10,7 +10,6 @@ import java.util.List;
 
 @Repository
 public interface ImageRepository extends JpaRepository<Image,Long> {
-    @Query("SELECT i FROM Image i WHERE i.objectId IN :objectIds AND i.status = '1'")
-    List<Image> findByObjectIdsAndStatus(@Param("objectIds") List<Long> objectIds);
-
+    @Query("SELECT i FROM Image i WHERE i.id IN :ids AND i.status = '1'")
+    List<Image> findByIds(@Param("ids") List<Long> ids);
 }

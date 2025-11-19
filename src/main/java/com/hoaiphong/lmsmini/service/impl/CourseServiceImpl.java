@@ -5,12 +5,14 @@ import com.hoaiphong.lmsmini.base.PageResponse;
 import com.hoaiphong.lmsmini.dto.CountDTO;
 import com.hoaiphong.lmsmini.dto.request.CourseCreateRequest;
 import com.hoaiphong.lmsmini.dto.request.CourseUpdateRequest;
-import com.hoaiphong.lmsmini.dto.response.CourseCreateResponse;
-import com.hoaiphong.lmsmini.dto.response.CourseResponse;
+import com.hoaiphong.lmsmini.dto.response.*;
 import com.hoaiphong.lmsmini.entity.Course;
 import com.hoaiphong.lmsmini.entity.Image;
+import com.hoaiphong.lmsmini.entity.Lesson;
 import com.hoaiphong.lmsmini.mapper.CourseMapper;
 import com.hoaiphong.lmsmini.mapper.ImageMapper;
+import com.hoaiphong.lmsmini.mapper.LessonMapper;
+import com.hoaiphong.lmsmini.mapper.VidMapper;
 import com.hoaiphong.lmsmini.repository.CourseRepository;
 import com.hoaiphong.lmsmini.repository.EnrollmentRepository;
 import com.hoaiphong.lmsmini.repository.ImageRepository;
@@ -38,6 +40,8 @@ public class CourseServiceImpl implements CourseService {
     private final ImageMapper imageMapper;
     private final EnrollmentRepository enrollmentRepository;
     private final LessonRepository lessonRepository;
+    private final LessonMapper lessonMapper;
+    private final VidMapper vidMapper;
 
     @Override
     public CreateResponse<CourseCreateResponse> createCourse(CourseCreateRequest request, List<MultipartFile> images) {
@@ -92,35 +96,41 @@ public class CourseServiceImpl implements CourseService {
             ));
         }
 
-        // Lấy tất cả IDs
+        // Tập hợp tất cả imageIds từ courses
+        List<Long> allImageIds = courses.stream()
+                .flatMap(c -> Arrays.stream(Optional.ofNullable(c.getImageIds()).orElse("").split(",")))
+                .filter(s -> !s.isBlank())
+                .map(Long::valueOf)
+                .toList();
+
+        // Lấy tất cả images active
+        List<Image> allImages = allImageIds.isEmpty() ? List.of() : imageRepository.findByIds(allImageIds)
+                .stream().filter(img -> "1".equals(img.getStatus())).toList();
+
+        //  Lấy enrollments và lessons count
         List<Long> courseIds = courses.stream().map(Course::getId).toList();
-
-        // Preload images cho các course
-        List<Image> images = imageRepository.findByObjectIdsAndStatus(courseIds);
-        Map<Long, List<Image>> imagesMap = images.stream()
-                .collect(Collectors.groupingBy(Image::getObjectId));
-
-        // Preload enrollments và lessons count để tránh lazy
-        Map<Long, Long> enrollmentsMap = enrollmentRepository.countByCourseIds(courseIds)
-                .stream()
+        Map<Long, Long> enrollmentsMap = enrollmentRepository.countByCourseIds(courseIds).stream()
                 .collect(Collectors.toMap(CountDTO::getCourseId, CountDTO::getCount));
-
-        Map<Long, Long> lessonsMap = lessonRepository.countByCourseIds(courseIds)
-                .stream()
+        Map<Long, Long> lessonsMap = lessonRepository.countByCourseIds(courseIds).stream()
                 .collect(Collectors.toMap(CountDTO::getCourseId, CountDTO::getCount));
 
         // Map Course → CourseResponse
-        List<CourseResponse> courseResponses = courses.stream()
-                .map(course -> courseMapper.toResponse(
-                        course,
-                        imagesMap.getOrDefault(course.getId(), List.of()),
-                        enrollmentsMap.getOrDefault(course.getId(), 0L).intValue(),
-                        lessonsMap.getOrDefault(course.getId(), 0L).intValue(),
-                        imageMapper
-                ))
-                .toList();
+        List<CourseResponse> courseResponses = courses.stream().map(course -> {
+            List<Image> courseImgs = Arrays.stream(Optional.ofNullable(course.getImageIds()).orElse("").split(","))
+                    .filter(s -> !s.isBlank())
+                    .map(Long::valueOf)
+                    .flatMap(id -> allImages.stream().filter(img -> img.getId().equals(id)))
+                    .toList();
 
-        // Trả PageResponse
+            return courseMapper.toResponse(
+                    course,
+                    courseImgs,
+                    enrollmentsMap.getOrDefault(course.getId(), 0L).intValue(),
+                    lessonsMap.getOrDefault(course.getId(), 0L).intValue(),
+                    imageMapper
+            );
+        }).toList();
+
         return new PageResponse<>(courseResponses, new PageResponse.Pagination(
                 coursesPage.getNumber(),
                 coursesPage.getSize(),
@@ -130,7 +140,6 @@ public class CourseServiceImpl implements CourseService {
                 coursesPage.hasPrevious()
         ));
     }
-
 
     @Override
     @Transactional
@@ -215,5 +224,78 @@ public class CourseServiceImpl implements CourseService {
         course.setStatus("0");
         courseRepository.save(course);
         return false;
+    }
+
+    @Override
+    public CourseDetailResponse getCourseDetailById(Long id) {
+        // Lấy course active
+        Course course = courseRepository.findByIdAndActiveStatus(id)
+                .orElseThrow(() -> new RuntimeException("Course not found"));
+
+        //  Lấy tất cả imageIds của course
+        List<Long> courseImageIds = Arrays.stream(Optional.ofNullable(course.getImageIds()).orElse("").split(","))
+                .filter(s -> !s.isBlank())
+                .map(Long::valueOf)
+                .toList();
+
+        // Lấy images của course
+        List<Image> courseImages = courseImageIds.isEmpty() ? List.of() : imageRepository.findByIds(courseImageIds)
+                .stream().filter(img -> "1".equals(img.getStatus())).toList();
+
+        // Lấy lesson active của course
+        List<Lesson> lessons = lessonRepository.findByCourseIdActive(course.getId());
+
+        // Lấy tất cả image/video của lessons
+        List<Long> allLessonImageIds = lessons.stream()
+                .flatMap(lesson -> Arrays.stream(Optional.ofNullable(lesson.getImageIds()).orElse("").split(",")))
+                .filter(s -> !s.isBlank())
+                .map(Long::valueOf)
+                .toList();
+
+        System.out.println(allLessonImageIds);
+        // lọc ảnh nào có status = 1
+        List<Image> lessonImages = allLessonImageIds.isEmpty() ? List.of() : imageRepository.findByIds(allLessonImageIds)
+                .stream().filter(img -> "1".equals(img.getStatus())).toList();
+
+        System.out.println(lessonImages);
+        // Tạo map id -> image để lookup nhanh
+        Map<Long, Image> lessonImageMap = lessonImages.stream()
+                .collect(Collectors.toMap(Image::getId, img -> img));
+
+        System.out.println(lessonImageMap);
+        //  Map lesson → LessonResponse
+        List<LessonResponse> lessonResponses = lessons.stream().map(lesson -> {
+            LessonResponse lr = lessonMapper.toResponse(lesson);
+
+            List<Long> ids = Arrays.stream(Optional.ofNullable(lesson.getImageIds()).orElse("").split(","))
+                    .filter(s -> !s.isBlank())
+                    .map(Long::valueOf)
+                    .toList();
+
+            List<Image> imgs = ids.stream()
+                    .map(lessonImageMap::get)
+                    .filter(Objects::nonNull)
+                    .filter(img -> "IMAGE".equals(img.getType()))
+                    .toList();
+
+            List<Image> vids = ids.stream()
+                    .map(lessonImageMap::get)
+                    .filter(Objects::nonNull)
+                    .filter(img -> "VID".equals(img.getType()))
+                    .toList();
+
+            lr.setImages(imageMapper.toResponseList(imgs));
+            lr.setVideos(vidMapper.toResponseList(vids));
+            return lr;
+        }).toList();
+
+        //  Map sang CourseDetailResponse
+        return courseMapper.toDetailResponse(
+                course,
+                courseImages,
+                lessonResponses,
+                null,
+                imageMapper
+        );
     }
 }

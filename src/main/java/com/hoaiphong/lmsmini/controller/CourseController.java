@@ -5,6 +5,7 @@ import com.hoaiphong.lmsmini.base.PageResponse;
 import com.hoaiphong.lmsmini.dto.request.CourseCreateRequest;
 import com.hoaiphong.lmsmini.dto.request.CourseUpdateRequest;
 import com.hoaiphong.lmsmini.dto.response.CourseCreateResponse;
+import com.hoaiphong.lmsmini.dto.response.CourseDetailResponse;
 import com.hoaiphong.lmsmini.dto.response.CourseResponse;
 import com.hoaiphong.lmsmini.service.CourseService;
 import jakarta.validation.Valid;
@@ -22,6 +23,12 @@ import java.util.List;
 public class CourseController {
 
     private final CourseService courseService;
+
+    @GetMapping("/{id}")
+    public ResponseEntity<CourseDetailResponse> getCourseDetailById(@PathVariable Long id) {
+        CourseDetailResponse response = courseService.getCourseDetailById(id);
+        return ResponseEntity.ok(response);
+    }
 
     @PostMapping
     public CreateResponse<CourseCreateResponse> createCourse(

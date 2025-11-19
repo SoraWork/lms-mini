@@ -32,4 +32,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
             String code,
             Pageable pageable
     );
+
+    @Query("SELECT c FROM Course c WHERE c.id = :id AND c.status = '1'")
+    Optional<Course> findByIdAndActiveStatus(@Param("id") Long id);
 }

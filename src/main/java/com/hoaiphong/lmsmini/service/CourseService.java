@@ -5,6 +5,7 @@ import com.hoaiphong.lmsmini.base.PageResponse;
 import com.hoaiphong.lmsmini.dto.request.CourseCreateRequest;
 import com.hoaiphong.lmsmini.dto.request.CourseUpdateRequest;
 import com.hoaiphong.lmsmini.dto.response.CourseCreateResponse;
+import com.hoaiphong.lmsmini.dto.response.CourseDetailResponse;
 import com.hoaiphong.lmsmini.dto.response.CourseResponse;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,4 +24,6 @@ public interface CourseService {
     CourseResponse updateCourse(Long id, CourseUpdateRequest request, List<MultipartFile> images);
 
     boolean deleteCourse(Long id);
+
+    CourseDetailResponse getCourseDetailById(Long id);
 }

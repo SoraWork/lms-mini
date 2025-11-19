@@ -18,6 +18,7 @@ public class LessonUpdateRequest {
     @Size(min = 3, max = 255, message = "Tiêu đề phải từ 3 đến 255 ký tự")
     private String title;
 
-    @NotNull(message = "Danh sách ảnh không được null")
-    private List<@NotNull Long> imageIds;
+    private List<Long> imageIds; // danh sách ảnh bị update status = 0
+
+    private List<Long> videoIds; // danh sách vid bị update status = 0
 }

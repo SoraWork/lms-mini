@@ -16,7 +16,8 @@ public class LessonResponse {
     private Long id;
     private String title;
     private Long courseId;
-    private List<Long> imageIds;
+    private List<ImageResponse> images;
+    private List<VidResponse>  videos;
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

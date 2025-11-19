@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface LessonRepository extends JpaRepository<Lesson, Long> {
@@ -27,4 +28,18 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
        WHERE l.course.id = :courseId AND l.status = '1'
        """)
     List<Lesson> findByCourseIdAndStatus(@Param("courseId") Long courseId);
+
+    @Query("""
+   SELECT l
+   FROM Lesson l
+   WHERE l.course.id = :courseId AND l.status = '1'
+""")
+    List<Lesson> findByCourseIdActive(@Param("courseId") Long courseId);
+
+    @Query("""
+    SELECT ls FROM Lesson ls
+    WHERE ls.status = '1'
+        AND (:id IS NULL OR ls.id = :id)
+    """)
+    Optional<Lesson> findLessonByIdAndActiveStatus(@Param("id") Long id);
 }
