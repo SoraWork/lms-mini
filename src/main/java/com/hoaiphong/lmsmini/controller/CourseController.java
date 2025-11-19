@@ -7,7 +7,9 @@ import com.hoaiphong.lmsmini.dto.request.CourseUpdateRequest;
 import com.hoaiphong.lmsmini.dto.response.CourseCreateResponse;
 import com.hoaiphong.lmsmini.dto.response.CourseDetailResponse;
 import com.hoaiphong.lmsmini.dto.response.CourseResponse;
+import com.hoaiphong.lmsmini.dto.response.CourseStudentResponse;
 import com.hoaiphong.lmsmini.service.CourseService;
+import com.hoaiphong.lmsmini.service.EnrollmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,12 +25,23 @@ import java.util.List;
 public class CourseController {
 
     private final CourseService courseService;
+    private final EnrollmentService enrollmentService;
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id}/lesson")
     public ResponseEntity<CourseDetailResponse> getCourseDetailById(@PathVariable Long id) {
         CourseDetailResponse response = courseService.getCourseDetailById(id);
         return ResponseEntity.ok(response);
     }
+    @GetMapping("/{id}/student")
+    public ResponseEntity<CourseStudentResponse> getStudentInCourseById(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        CourseStudentResponse response = enrollmentService.getStudentsOfCourse(id, page, size);
+        return ResponseEntity.ok(response);
+    }
+
 
     @PostMapping
     public CreateResponse<CourseCreateResponse> createCourse(

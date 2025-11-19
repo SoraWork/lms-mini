@@ -6,17 +6,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.List;
-
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class EnrollmentCreateRequest {
-
+public class EnrollmentDeleteRequest {
     @NotNull(message = "StudentId không được để trống")
     private Long studentId;
-
-    @NotNull(message = "CourseId không được để trống")
-    private List<Long> courseIds;
 }

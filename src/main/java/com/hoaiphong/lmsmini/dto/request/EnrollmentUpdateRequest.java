@@ -12,11 +12,12 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class EnrollmentCreateRequest {
+public class EnrollmentUpdateRequest {
 
     @NotNull(message = "StudentId không được để trống")
     private Long studentId;
 
-    @NotNull(message = "CourseId không được để trống")
-    private List<Long> courseIds;
+    private List<Long> courseIdsDelete;
+
+    private List<Long> courseIdsCreate;
 }

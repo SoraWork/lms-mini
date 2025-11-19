@@ -8,12 +8,21 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface CourseRepository extends JpaRepository<Course, Long> {
     boolean existsByCode(String code);
     boolean existsByCodeAndIdNot(String code, Long id);
+
+    @Query("""
+    SELECT c FROM Course c
+    WHERE c.status = '1'
+      AND (:ids IS NULL OR c.id IN :ids)
+    """)
+    List<Course> findAllByIdInAndActiveStatus(@Param("ids") List<Long> ids);
+
     @Query("""
     SELECT c FROM Course c
     WHERE c.status = '1'
