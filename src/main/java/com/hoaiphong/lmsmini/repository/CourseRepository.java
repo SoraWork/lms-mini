@@ -41,6 +41,29 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
             String code,
             Pageable pageable
     );
+//tách Page<Course> thanh 1 cau list 1 cau count
+    @Query("""
+        SELECT c FROM Course c
+        WHERE c.status = '1'
+            AND (:name IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :name, '%')) ESCAPE '\\')
+            AND (:code IS NULL OR LOWER(c.code) LIKE LOWER(CONCAT('%', :code, '%')) ESCAPE '\\')
+        """)
+    List<Course> searchCoursesList(
+            @Param("name") String name,
+            @Param("code") String code,
+            Pageable pageable
+    );
+
+    @Query("""
+        SELECT COUNT(c) FROM Course c
+        WHERE c.status = '1'
+            AND (:name IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :name, '%')) ESCAPE '\\')
+            AND (:code IS NULL OR LOWER(c.code) LIKE LOWER(CONCAT('%', :code, '%')) ESCAPE '\\')
+        """)
+    Long countCourses(
+            @Param("name") String name,
+            @Param("code") String code
+    );
 
     @Query("SELECT c FROM Course c WHERE c.id = :id AND c.status = '1'")
     Optional<Course> findByIdAndActiveStatus(@Param("id") Long id);

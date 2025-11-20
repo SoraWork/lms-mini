@@ -14,9 +14,9 @@ import java.util.List;
 @AllArgsConstructor
 public class EnrollmentCreateRequest {
 
-    @NotNull(message = "StudentId không được để trống")
+    @NotNull(message = "error.enrollment.studentId.null")
     private Long studentId;
 
-    @NotNull(message = "CourseId không được để trống")
+    @NotNull(message = "error.enrollment.courseIds.null")
     private List<Long> courseIds;
 }

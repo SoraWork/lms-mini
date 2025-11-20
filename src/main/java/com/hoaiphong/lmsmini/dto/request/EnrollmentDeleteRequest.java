@@ -11,6 +11,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class EnrollmentDeleteRequest {
-    @NotNull(message = "StudentId không được để trống")
+    @NotNull(message = "error.enrollment.studentId.null")
     private Long studentId;
 }

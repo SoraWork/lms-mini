@@ -17,12 +17,13 @@ import java.util.List;
 @AllArgsConstructor
 public class CourseUpdateRequest {
 
-    @NotBlank(message = "Tên khóa học không được để trống")
+    @NotBlank(message = "error.course.name.blank")
+    @Size(min = 3, max = 150, message = "error.course.name.size")
     private String name;
 
-    @NotBlank(message = "Mã khóa học không được để trống")
+    @NotBlank(message = "error.course.code.blank")
+    @Size(min = 3, max = 20, message = "error.course.code.size")
     private String code;
 
-    // ảnh cũ muốn xóa
     private List<Long> deleteImageIds;
 }

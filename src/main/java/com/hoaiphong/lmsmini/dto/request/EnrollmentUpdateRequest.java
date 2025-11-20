@@ -14,7 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 public class EnrollmentUpdateRequest {
 
-    @NotNull(message = "StudentId không được để trống")
+    @NotNull(message = "error.enrollment.studentId.null")
     private Long studentId;
 
     private List<Long> courseIdsDelete;

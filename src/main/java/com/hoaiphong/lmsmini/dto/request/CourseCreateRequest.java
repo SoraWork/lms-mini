@@ -14,12 +14,12 @@ import java.util.List;
 @AllArgsConstructor
 public class CourseCreateRequest {
 
-    @NotBlank(message = "Tên khóa học không được để trống")
-    @Size(min = 3, max = 150, message = "Tên khóa học phải từ 3 đến 150 ký tự")
+    @NotBlank(message = "error.course.name.blank")
+    @Size(min = 3, max = 150, message = "error.course.name.size")
     private String name;
 
-    @NotBlank(message = "Mã khóa học không được để trống")
-    @Size(min = 3, max = 20, message = "Code phải từ 3–20 ký tự")
+    @NotBlank(message = "error.course.code.blank")
+    @Size(min = 3, max = 20, message = "error.course.code.size")
     private String code;
 
     private List<LessonCreateRequest> lessons;

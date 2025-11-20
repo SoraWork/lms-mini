@@ -8,6 +8,7 @@ import com.hoaiphong.lmsmini.dto.response.LessonCreateResponse;
 import com.hoaiphong.lmsmini.dto.response.LessonResponse;
 import com.hoaiphong.lmsmini.entity.Image;
 import com.hoaiphong.lmsmini.entity.Lesson;
+import com.hoaiphong.lmsmini.exception.SomeThingWrongException;
 import com.hoaiphong.lmsmini.mapper.ImageMapper;
 import com.hoaiphong.lmsmini.mapper.LessonMapper;
 import com.hoaiphong.lmsmini.mapper.VidMapper;
@@ -40,8 +41,8 @@ public class LessonServiceImpl implements LessonService {
     @Transactional
     public CreateResponse<LessonCreateResponse> createLesson(LessonCreateRequest request) {
 
-        var course = courseRepository.findById(request.getCourseId())
-                .orElseThrow(() -> new RuntimeException("Course not found"));
+        var course = courseRepository.findCourseByIdAndActiveStatus(request.getCourseId())
+                .orElseThrow(() -> new SomeThingWrongException("error.course.id.notfound"));
 
         List<Long> lessonIds = new ArrayList<>();
 
@@ -97,10 +98,6 @@ public class LessonServiceImpl implements LessonService {
         return new CreateResponse<>(200, "lesson.create.success", new LessonCreateResponse(lessonIds));
     }
 
-    @Override
-    public PageResponse<LessonResponse> searchLessons(String name, String code, int page, int size) {
-        return null;
-    }
 
     @Override
     @Transactional
@@ -113,7 +110,7 @@ public class LessonServiceImpl implements LessonService {
 
         // 1. Lấy lesson đang active
         Lesson lesson = lessonRepository.findLessonByIdAndActiveStatus(id)
-                .orElseThrow(() -> new RuntimeException("Lesson not found"));
+                .orElseThrow(() -> new SomeThingWrongException("error.lesson.id.notfound"));
 
         // 2. Update title
         lessonMapper.updateLesson(lesson, request);
@@ -140,10 +137,10 @@ public class LessonServiceImpl implements LessonService {
             // validate: tất cả phải type=IMAGE
             for (Image i : imgs) {
                 if (!"IMAGE".equals(i.getType())) {
-                    throw new RuntimeException("ID " + i.getId() + " không phải IMAGE");
+                    throw new SomeThingWrongException("error.file.type");
                 }
                 if (!i.getObjectId().equals(lesson.getId())) {
-                    throw new RuntimeException("File " + i.getId() + " không thuộc bài học này");
+                    throw new SomeThingWrongException("error.file");
                 }
                 i.setStatus("0");
             }
@@ -157,10 +154,10 @@ public class LessonServiceImpl implements LessonService {
             // validate: tất cả phải VID
             for (Image v : vids) {
                 if (!"VID".equals(v.getType())) {
-                    throw new RuntimeException("ID " + v.getId() + " không phải VIDEO");
+                    throw new SomeThingWrongException("error.file.type");
                 }
                 if (!v.getObjectId().equals(lesson.getId())) {
-                    throw new RuntimeException("File " + v.getId() + " không thuộc bài học này");
+                    throw new SomeThingWrongException("error.file");
                 }
                 v.setStatus("0");
             }
@@ -275,7 +272,7 @@ public class LessonServiceImpl implements LessonService {
     @Override
     public boolean deleteLesson(Long id) {
         Lesson lesson = lessonRepository.findLessonByIdAndActiveStatus(id)
-                .orElseThrow(() -> new RuntimeException("Lesson id " + id + " not found"));
+                .orElseThrow(() -> new SomeThingWrongException("error.lesson.id.notfound"));
         lesson.setStatus("0");
         lessonRepository.save(lesson);
         return false;

@@ -9,6 +9,7 @@ import com.hoaiphong.lmsmini.dto.response.*;
 import com.hoaiphong.lmsmini.entity.Course;
 import com.hoaiphong.lmsmini.entity.Image;
 import com.hoaiphong.lmsmini.entity.Lesson;
+import com.hoaiphong.lmsmini.exception.SomeThingWrongException;
 import com.hoaiphong.lmsmini.mapper.CourseMapper;
 import com.hoaiphong.lmsmini.mapper.ImageMapper;
 import com.hoaiphong.lmsmini.mapper.LessonMapper;
@@ -19,8 +20,8 @@ import com.hoaiphong.lmsmini.repository.ImageRepository;
 import com.hoaiphong.lmsmini.repository.LessonRepository;
 import com.hoaiphong.lmsmini.service.CourseService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,7 +47,7 @@ public class CourseServiceImpl implements CourseService {
     @Override
     public CreateResponse<CourseCreateResponse> createCourse(CourseCreateRequest request, List<MultipartFile> images) {
         if ( courseRepository.existsByCode(request.getCode()) ) {
-            throw new RuntimeException("Code already exists");
+            throw new SomeThingWrongException("error.course.code.exists");
         }
 
         Course course = courseMapper.toEntity(request);
@@ -65,7 +66,7 @@ public class CourseServiceImpl implements CourseService {
             }
             savedImages = imageRepository.saveAll(savedImages);
 
-            // Cập nhật imageIds trong student
+            // Cập nhật imageIds trong course
             String imageIds = savedImages.stream()
                     .map(img -> img.getId().toString())
                     .collect(Collectors.joining(","));
@@ -82,17 +83,27 @@ public class CourseServiceImpl implements CourseService {
         name = escapeLike(name);
         code = escapeLike(code);
 
-        Page<Course> coursesPage = courseRepository.searchCourses(name, code, PageRequest.of(page, size));
-        List<Course> courses = coursesPage.getContent();
+        Pageable pageable = PageRequest.of(page, size);
+
+        //Lấy dữ liệu page hiện tại
+        List<Course> courses = courseRepository.searchCoursesList(name, code, pageable);
+
+        // COUNT chính xác
+        Long total = courseRepository.countCourses(name, code);
+
+        // Tính toán pagination giống Page
+        int totalPages = (int) Math.ceil((double) total / size);
+        boolean hasNext = page + 1 < totalPages;
+        boolean hasPrevious = page > 0;
 
         if (courses.isEmpty()) {
             return new PageResponse<>(List.of(), new PageResponse.Pagination(
-                    coursesPage.getNumber(),
-                    coursesPage.getSize(),
-                    coursesPage.getTotalElements(),
-                    coursesPage.getTotalPages(),
-                    coursesPage.hasNext(),
-                    coursesPage.hasPrevious()
+                    page,
+                    size,
+                    total,
+                    totalPages,
+                    hasNext,
+                    hasPrevious
             ));
         }
 
@@ -132,12 +143,12 @@ public class CourseServiceImpl implements CourseService {
         }).toList();
 
         return new PageResponse<>(courseResponses, new PageResponse.Pagination(
-                coursesPage.getNumber(),
-                coursesPage.getSize(),
-                coursesPage.getTotalElements(),
-                coursesPage.getTotalPages(),
-                coursesPage.hasNext(),
-                coursesPage.hasPrevious()
+                page,
+                size,
+                total,
+                totalPages,
+                hasNext,
+                hasPrevious
         ));
     }
 
@@ -146,11 +157,11 @@ public class CourseServiceImpl implements CourseService {
     public CourseResponse updateCourse(Long id, CourseUpdateRequest request, List<MultipartFile> images) {
         // lấy course theo id và status = 1
         Course course = courseRepository.findCourseByIdAndActiveStatus(id)
-                .orElseThrow(() -> new RuntimeException("Course not found"));
+                .orElseThrow(() -> new SomeThingWrongException("error.course.id.notfound"));
 
         // Kiểm tra code khóa học có trùng k
         if (courseRepository.existsByCodeAndIdNot(request.getCode(), id)) {
-            throw new RuntimeException("Code already exists");
+            throw new SomeThingWrongException("error.course.code.exists");
         }
         //Update thong tin co ban
         courseMapper.updateCourse(course, request);
@@ -220,17 +231,17 @@ public class CourseServiceImpl implements CourseService {
     @Override
     public boolean deleteCourse(Long id) {
         Course course = courseRepository.findCourseByIdAndActiveStatus(id)
-                .orElseThrow(() -> new RuntimeException("Student not found"));
+                .orElseThrow(() -> new SomeThingWrongException("error.course.id.notfound"));
         course.setStatus("0");
         courseRepository.save(course);
-        return false;
+        return true;
     }
 
     @Override
     public CourseDetailResponse getCourseDetailById(Long id) {
         // Lấy course active
         Course course = courseRepository.findByIdAndActiveStatus(id)
-                .orElseThrow(() -> new RuntimeException("Course not found"));
+                .orElseThrow(() -> new SomeThingWrongException("error.course.id.notfound"));
 
         //  Lấy tất cả imageIds của course
         List<Long> courseImageIds = Arrays.stream(Optional.ofNullable(course.getImageIds()).orElse("").split(","))
@@ -252,7 +263,6 @@ public class CourseServiceImpl implements CourseService {
                 .map(Long::valueOf)
                 .toList();
 
-        System.out.println(allLessonImageIds);
         // lọc ảnh nào có status = 1
         List<Image> lessonImages = allLessonImageIds.isEmpty() ? List.of() : imageRepository.findByIds(allLessonImageIds)
                 .stream().filter(img -> "1".equals(img.getStatus())).toList();

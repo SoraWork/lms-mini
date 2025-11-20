@@ -11,12 +11,12 @@ import java.util.List;
 @AllArgsConstructor
 public class StudentCreateRequest {
 
-    @NotBlank(message = "Tên sinh viên không được để trống")
-    @Size(min = 3, max = 100, message = "Tên sinh viên phải từ 3–100 ký tự")
+    @NotBlank(message = "error.student.name.blank")
+    @Size(min = 3, max = 100, message = "error.student.name.size")
     private String name;
 
-    @NotBlank(message = "Email không được để trống")
-    @Email(message = "Email không hợp lệ")
+    @NotBlank(message = "error.student.email.blank")
+    @Email(message = "error.student.email.invalid")
     private String email;
 
 }

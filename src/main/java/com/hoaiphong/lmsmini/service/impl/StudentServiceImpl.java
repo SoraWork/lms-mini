@@ -8,9 +8,11 @@ import com.hoaiphong.lmsmini.dto.response.CourseSummaryResponse;
 import com.hoaiphong.lmsmini.dto.response.ImageResponse;
 import com.hoaiphong.lmsmini.dto.response.StudentCreateResponse;
 import com.hoaiphong.lmsmini.dto.response.StudentResponse;
+import com.hoaiphong.lmsmini.entity.Course;
 import com.hoaiphong.lmsmini.entity.Enrollment;
 import com.hoaiphong.lmsmini.entity.Image;
 import com.hoaiphong.lmsmini.entity.Student;
+import com.hoaiphong.lmsmini.exception.SomeThingWrongException;
 import com.hoaiphong.lmsmini.mapper.ImageMapper;
 import com.hoaiphong.lmsmini.mapper.StudentMapper;
 import com.hoaiphong.lmsmini.repository.EnrollmentRepository;
@@ -20,6 +22,7 @@ import com.hoaiphong.lmsmini.service.StudentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,7 +44,7 @@ public class StudentServiceImpl implements StudentService {
     @Override
     public CreateResponse<StudentCreateResponse> createStudent(StudentCreateRequest request, List<MultipartFile> images) {
         if (studentRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email đã tồn tại");
+            throw new SomeThingWrongException("error.student.email.exists");
         }
 
         //Tạo Student
@@ -81,18 +84,26 @@ public class StudentServiceImpl implements StudentService {
         name = escapeLike(name);
         email = escapeLike(email);
 
-        // Lấy page students
-        Page<Student> studentsPage = studentRepository.searchStudents(name, email, PageRequest.of(page, size));
-        List<Student> students = studentsPage.getContent();
+        Pageable pageable = PageRequest.of(page, size);
+        //Lấy dữ liệu page hiện tại
+        List<Student> students = studentRepository.searchStudentsList(name, email, pageable);
+
+        // COUNT chính xác
+        Long total = studentRepository.countStudents(name, email);
+
+        // Tính toán pagination giống Page
+        int totalPages = (int) Math.ceil((double) total / size);
+        boolean hasNext = page + 1 < totalPages;
+        boolean hasPrevious = page > 0;
 
         if (students.isEmpty()) {
             return new PageResponse<>(List.of(), new PageResponse.Pagination(
-                    studentsPage.getNumber(),
-                    studentsPage.getSize(),
-                    studentsPage.getTotalElements(),
-                    studentsPage.getTotalPages(),
-                    studentsPage.hasNext(),
-                    studentsPage.hasPrevious()
+                    page,
+                    size,
+                    total,
+                    totalPages,
+                    hasNext,
+                    hasPrevious
             ));
         }
 
@@ -148,12 +159,12 @@ public class StudentServiceImpl implements StudentService {
         return new PageResponse<>(
                 studentResponses,
                 new PageResponse.Pagination(
-                        studentsPage.getNumber(),
-                        studentsPage.getSize(),
-                        studentsPage.getTotalElements(),
-                        studentsPage.getTotalPages(),
-                        studentsPage.hasNext(),
-                        studentsPage.hasPrevious()
+                        page,
+                        size,
+                        total,
+                        totalPages,
+                        hasNext,
+                        hasPrevious
                 )
         );
     }
@@ -163,11 +174,11 @@ public class StudentServiceImpl implements StudentService {
 
         // Lấy student theo id và status = '1'
         Student student = studentRepository.findByIdAndActiveStatus(id)
-                .orElseThrow(() -> new RuntimeException("Student not found"));
+                .orElseThrow(() -> new SomeThingWrongException("error.student.id.notfound"));
 
         // Kiểm tra email trùng (khác student hiện tại)
         if(studentRepository.existsByEmailAndIdNot(request.getEmail(), id)) {
-            throw new RuntimeException("Email đã tồn tại");
+            throw new SomeThingWrongException("error.student.email.exists");
         }
 
         // Update thông tin cơ bản
@@ -229,7 +240,7 @@ public class StudentServiceImpl implements StudentService {
     @Override
     public boolean deleteStudent(Long id) {
         Student student = studentRepository.findByIdAndActiveStatus(id).
-                orElseThrow(() -> new RuntimeException("Student not found"));
+                orElseThrow(() -> new SomeThingWrongException("error.student.id.notfound"));
         student.setStatus("0");
         studentRepository.save(student);
         return true;

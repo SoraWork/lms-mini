@@ -14,8 +14,8 @@ import java.util.List;
 @NoArgsConstructor
 public class LessonUpdateRequest {
 
-    @NotBlank(message = "Tiêu đề bài học không được để trống")
-    @Size(min = 3, max = 255, message = "Tiêu đề phải từ 3 đến 255 ký tự")
+    @NotBlank(message = "error.lesson.item.title.blank")
+    @Size(min = 3, max = 255, message = "error.lesson.item.title.size")
     private String title;
 
     private List<Long> imageIds; // danh sách ảnh bị update status = 0

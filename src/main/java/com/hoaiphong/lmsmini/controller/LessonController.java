@@ -37,7 +37,12 @@ public class LessonController {
         LessonResponse lessonResponse = lessonService.updateLesson(id, request, images, videos);
         return ResponseEntity.ok(lessonResponse);
     }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteCourse(@PathVariable Long id){
+        lessonService.deleteLesson(id);
+        return ResponseEntity.ok().build();
+    }
 
-    
+
 
 }

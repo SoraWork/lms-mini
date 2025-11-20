@@ -14,11 +14,11 @@ import java.util.List;
 @AllArgsConstructor
 public class StudentUpdateRequest {
 
-    @NotBlank(message = "Tên sinh viên không được để trống")
+    @NotBlank(message = "error.student.name.blank")
     private String name;
 
-    @Email(message = "Email không hợp lệ")
-    @NotBlank(message = "Email không được để trống")
+    @NotBlank(message = "error.student.email.blank")
+    @Email(message = "error.student.email.invalid")
     private String email;
 
     private List<Long> deleteImageIds;

@@ -6,6 +6,7 @@ import com.hoaiphong.lmsmini.dto.response.EnrollmentResponse;
 import com.hoaiphong.lmsmini.dto.response.ImageResponse;
 import com.hoaiphong.lmsmini.dto.response.StudentInCourseResponse;
 import com.hoaiphong.lmsmini.entity.*;
+import com.hoaiphong.lmsmini.exception.SomeThingWrongException;
 import com.hoaiphong.lmsmini.mapper.*;
 import com.hoaiphong.lmsmini.repository.*;
 import com.hoaiphong.lmsmini.service.EnrollmentService;
@@ -41,18 +42,14 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     public List<EnrollmentResponse> enrollStudent(Long studentId, List<Long> courseIds) {
         // validate student (giữ nguyên phần kiểm tra student của bạn)
         Student student = studentRepository.findByIdAndActiveStatus(studentId)
-                .orElseThrow(() -> new RuntimeException("Student không tồn tại hoặc không active"));
+                .orElseThrow(() -> new SomeThingWrongException("error.student.id.notfound"));
 
         // Lấy chỉ các course active theo danh sách id yêu cầu
         List<Course> courses = courseRepository.findAllByIdInAndActiveStatus(courseIds);
 
         // Nếu số lượng khác => có id không tồn tại hoặc không active
         if (courses.size() != (courseIds == null ? 0 : courseIds.size())) {
-            Set<Long> foundIds = courses.stream().map(Course::getId).collect(Collectors.toSet());
-            List<Long> missing = courseIds.stream()
-                    .filter(id -> !foundIds.contains(id))
-                    .toList();
-            throw new RuntimeException("Các course sau không tồn tại hoặc không active: " + missing);
+            throw new SomeThingWrongException("error.course.code.notfound");
         }
 
         // Kiểm tra đã enroll hay chưa và tạo danh sách enroll
@@ -62,7 +59,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                     .existsByStudentIdAndCourseIdAndActiveStatus(studentId, course.getId());
 
             if (exists) {
-                throw new RuntimeException("Student đã đăng ký course ID = " + course.getId());
+                throw new SomeThingWrongException("error.enrollment.id.exists");
             }
 
             Enrollment e = enrollmentMapper.toEntity(student, course, "1");
@@ -83,12 +80,18 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             List<Long> courseIdsDelete,
             List<Long> courseIdsCreate
     ) {
+        // 0) Validate student
+        Student student = studentRepository.findByIdAndActiveStatus(studentId)
+                .orElseThrow(() -> new SomeThingWrongException("error.student.id.notfound"));
+
         List<EnrollmentResponse> results = new ArrayList<>();
 
-        // =======================
         // 1) DELETE nếu có
-        // =======================
         if (courseIdsDelete != null && !courseIdsDelete.isEmpty()) {
+            List<Course> coursesToDelete = courseRepository.findAllByIdInAndActiveStatus(courseIdsDelete);
+            if (coursesToDelete.size() != courseIdsDelete.size()) {
+                throw new SomeThingWrongException("error.course.code.notfound");
+            }
             for (Long courseId : courseIdsDelete) {
                 Enrollment enrollment = enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId);
 
@@ -109,9 +112,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             }
         }
 
-        // =======================
         // 2) CREATE nếu có
-        // =======================
         if (courseIdsCreate != null && !courseIdsCreate.isEmpty()) {
             for (Long courseId : courseIdsCreate) {
                 Enrollment existing = enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId);
@@ -122,7 +123,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                         existing.setStatus("1");
                         enrollmentRepository.save(existing);
                     }
-                    // nếu đang active → bỏ qua
+                    // nếu đang active
                     results.add(new EnrollmentResponse(
                             studentId,
                             courseId,
@@ -133,7 +134,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                     continue;
                 }
 
-                // chưa tồn tại → tạo mới
+                // chưa tồn tại
                 Enrollment newEnrollment = new Enrollment();
                 newEnrollment.setId(new EnrollmentId(studentId, courseId));
                 newEnrollment.setStatus("1");
@@ -172,7 +173,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Override
     public CourseStudentResponse getStudentsOfCourse(Long courseId, int page, int size) {
         Course course = courseRepository.findByIdAndActiveStatus(courseId)
-                .orElseThrow(() -> new RuntimeException("Course not found"));
+                .orElseThrow(() -> new SomeThingWrongException("error.course.id.notfound"));
 
         Pageable pageable = PageRequest.of(page, size);
 

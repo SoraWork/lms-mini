@@ -13,12 +13,6 @@ import java.util.List;
 public interface LessonService {
     CreateResponse<LessonCreateResponse> createLesson(LessonCreateRequest request);
 
-    PageResponse<LessonResponse> searchLessons(
-            String name,
-            String code,
-            int page,
-            int size
-    );
 
     LessonResponse updateLesson(Long id, LessonUpdateRequest request, List<MultipartFile> images, List<MultipartFile> videos);
 

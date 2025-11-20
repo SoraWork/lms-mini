@@ -19,12 +19,12 @@ import java.util.List;
 @AllArgsConstructor
 public class LessonCreateRequest {
 
-    @NotNull(message = "CourseId không được để trống")
-    @Positive(message = "CourseId phải > 0")
+    @NotNull(message = "error.lesson.courseId.null")
+    @Positive(message = "error.lesson.courseId.positive")
     private Long courseId;
 
-    @NotNull(message = "Danh sách bài học không được để trống")
-    @Size(min = 1, message = "Phải có ít nhất 1 bài học")
+    @NotNull(message = "error.lesson.list.null")
+    @Size(min = 1, message = "error.lesson.list.size")
     @Valid // validate các LessonItem
     private List<LessonItem> lessons;
 
@@ -34,8 +34,8 @@ public class LessonCreateRequest {
     @AllArgsConstructor
     public static class LessonItem {
 
-        @NotBlank(message = "Tiêu đề bài học không được để trống")
-        @Size(min = 3, max = 255, message = "Tiêu đề phải từ 3 đến 255 ký tự")
+        @NotBlank(message = "error.lesson.item.title.blank")
+        @Size(min = 3, max = 255, message = "error.lesson.item.title.size")
         private String title;
 
         List<MultipartFile> images;

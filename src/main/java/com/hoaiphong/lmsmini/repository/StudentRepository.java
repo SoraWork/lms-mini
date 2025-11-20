@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -32,6 +33,28 @@ public interface StudentRepository extends JpaRepository<Student,Long> {
             String name,
             String email,
             Pageable pageable
+    );
+    // tách phân trang làm 2 câu
+    @Query("""
+        SELECT s FROM Student s
+        WHERE s.status = '1'
+            AND (:name IS NULL OR  LOWER(s.name) LIKE LOWER(CONCAT('%', :name, '%')) ESCAPE '\\')
+            AND (:email IS NULL OR  LOWER(s.email) LIKE LOWER(CONCAT('%', :email, '%')) ESCAPE '\\')
+    """)
+    List<Student> searchStudentsList(
+            String name,
+            String email,
+            Pageable pageable
+    );
+    @Query("""
+        SELECT s FROM Student s
+        WHERE s.status = '1'
+            AND (:name IS NULL OR  LOWER(s.name) LIKE LOWER(CONCAT('%', :name, '%')) ESCAPE '\\')
+            AND (:email IS NULL OR  LOWER(s.email) LIKE LOWER(CONCAT('%', :email, '%')) ESCAPE '\\')
+    """)
+    Long countStudents(
+            String name,
+            String email
     );
 
 }
