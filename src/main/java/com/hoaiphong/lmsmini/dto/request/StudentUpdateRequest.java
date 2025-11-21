@@ -22,4 +22,6 @@ public class StudentUpdateRequest {
     private String email;
 
     private List<Long> deleteImageIds;
+
+    private List<String> images;
 }

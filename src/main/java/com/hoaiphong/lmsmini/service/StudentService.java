@@ -12,7 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface StudentService {
-    CreateResponse<StudentCreateResponse> createStudent(StudentCreateRequest request, List<MultipartFile> images);
+    CreateResponse<StudentCreateResponse> createStudent(StudentCreateRequest request);
 
     PageResponse<StudentResponse> searchStudents(
             String name,
@@ -21,7 +21,7 @@ public interface StudentService {
             int size
     );
 
-    StudentResponse updateStudent(Long id, StudentUpdateRequest request, List<MultipartFile> images);
+    StudentResponse updateStudent(Long id, StudentUpdateRequest request);
 
     boolean deleteStudent(Long id);
 }

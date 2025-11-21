@@ -42,40 +42,44 @@ public class StudentServiceImpl implements StudentService {
     private final EnrollmentRepository enrollmentRepository;
 
     @Override
-    public CreateResponse<StudentCreateResponse> createStudent(StudentCreateRequest request, List<MultipartFile> images) {
+    public CreateResponse<StudentCreateResponse> createStudent(StudentCreateRequest request) {
         if (studentRepository.existsByEmail(request.getEmail())) {
             throw new SomeThingWrongException("error.student.email.exists");
         }
 
-        //Tạo Student
+        // 1) Tạo student
         Student student = studentMapper.toEntity(request);
         student = studentRepository.save(student);
 
-        //Upload và tạo Image
-        List<Image> savedImages = new ArrayList<>();
-        if (images != null && !images.isEmpty()) {
-            for (MultipartFile file : images) {
-                String url = fileStorageServiceImpl.save(file);
+        //lấy id từ student vừa tạo
+        Long studentId = student.getId();
+        //lấy ảnh vừa tạo bên FE
+        List<String> imageUrls = request.getImages();
+
+        // 2) Lưu images từ URL FE gửi lên
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+
+            List<Image> savedImages = imageUrls.stream().map(url -> {
                 Image img = new Image();
-                img.setUrl(url);
+                img.setUrl(url);              // FE đã upload lên Cloudinary trước
                 img.setType("IMAGE");
-                img.setObjectId(student.getId());
+                img.setObjectId(studentId);
                 img.setStatus("1");
-                savedImages.add(img);
-            }
+                return img;
+            }).collect(Collectors.toList());
+
             savedImages = imageRepository.saveAll(savedImages);
 
-            // Cập nhật imageIds trong student
+            // 3) Lưu imageIds vào Student
             String imageIds = savedImages.stream()
                     .map(img -> img.getId().toString())
                     .collect(Collectors.joining(","));
+
             student.setImageIds(imageIds);
             studentRepository.save(student);
         }
 
-        // Trả về id của student
         StudentCreateResponse response = new StudentCreateResponse(student.getId());
-
         return new CreateResponse<>(200, "student.create.success", response);
     }
 
@@ -170,7 +174,7 @@ public class StudentServiceImpl implements StudentService {
     }
     @Override
     @Transactional
-    public StudentResponse updateStudent(Long id, StudentUpdateRequest request, List<MultipartFile> images) {
+    public StudentResponse updateStudent(Long id, StudentUpdateRequest request) {
 
         // Lấy student theo id và status = '1'
         Student student = studentRepository.findByIdAndActiveStatus(id)
@@ -199,21 +203,24 @@ public class StudentServiceImpl implements StudentService {
             imageRepository.saveAll(imagesToDelete);
         }
 
+        //lấy ảnh vừa tạo bên FE
+        List<String> imageUrls = request.getImages();
+
         // Thêm ảnh mới nếu có
-        if (images != null && !images.isEmpty()) {
-            List<Image> newImages = new ArrayList<>();
-            for (MultipartFile file : images) {
-                String url = fileStorageServiceImpl.save(file); // lưu file
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+
+            List<Image> savedImages = imageUrls.stream().map(url -> {
                 Image img = new Image();
                 img.setUrl(url);
                 img.setType("IMAGE");
-                img.setObjectId(student.getId());
+                img.setObjectId(id);
                 img.setStatus("1");
-                newImages.add(img);
-            }
-            newImages = imageRepository.saveAll(newImages);
+                return img;
+            }).collect(Collectors.toList());
+
+            savedImages = imageRepository.saveAll(savedImages);
             // Thêm id ảnh mới vào list
-            currentImageIds.addAll(newImages.stream().map(Image::getId).toList());
+            currentImageIds.addAll(savedImages.stream().map(Image::getId).toList());
         }
         //cap nhat lại list imgids
         if (!currentImageIds.isEmpty()) {
@@ -239,8 +246,14 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public boolean deleteStudent(Long id) {
-        Student student = studentRepository.findByIdAndActiveStatus(id).
-                orElseThrow(() -> new SomeThingWrongException("error.student.id.notfound"));
+        Student student = studentRepository.findByIdAndActiveStatus(id)
+                .orElseThrow(() -> new SomeThingWrongException("error.student.id.notfound"));
+
+        Long activeEnrollCount = enrollmentRepository.countActiveByStudentId(id);
+
+        if (activeEnrollCount != null && activeEnrollCount > 0) {
+            throw new SomeThingWrongException("error.student.has.enrollments");
+        }
         student.setStatus("0");
         studentRepository.save(student);
         return true;

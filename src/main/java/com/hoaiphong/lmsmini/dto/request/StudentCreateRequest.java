@@ -19,4 +19,6 @@ public class StudentCreateRequest {
     @Email(message = "error.student.email.invalid")
     private String email;
 
+    private List<String> images;
+
 }

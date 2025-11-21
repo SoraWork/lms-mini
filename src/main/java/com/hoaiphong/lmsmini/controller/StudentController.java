@@ -25,10 +25,9 @@ public class StudentController {
 
     @PostMapping
     public CreateResponse<StudentCreateResponse> createStudent(
-            @Validated StudentCreateRequest request,
-            @RequestParam(required = false, name = "images") List<MultipartFile> images
+            @Validated StudentCreateRequest request
     ) {
-        return studentService.createStudent(request, images);
+        return studentService.createStudent(request);
     }
 
     @GetMapping("/search")
@@ -45,10 +44,9 @@ public class StudentController {
     @PutMapping("/{id}")
     public ResponseEntity<StudentResponse> updateStudent(
             @PathVariable Long id,
-            @Valid @ModelAttribute StudentUpdateRequest request,
-            @RequestParam(required = false) List<MultipartFile> images
+            @Valid @ModelAttribute StudentUpdateRequest request
     ){
-        StudentResponse response = studentService.updateStudent(id, request, images);
+        StudentResponse response = studentService.updateStudent(id, request);
         return ResponseEntity.ok(response);
     }
 

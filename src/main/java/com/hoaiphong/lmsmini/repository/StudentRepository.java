@@ -47,7 +47,7 @@ public interface StudentRepository extends JpaRepository<Student,Long> {
             Pageable pageable
     );
     @Query("""
-        SELECT s FROM Student s
+        SELECT COUNT(s) FROM Student s
         WHERE s.status = '1'
             AND (:name IS NULL OR  LOWER(s.name) LIKE LOWER(CONCAT('%', :name, '%')) ESCAPE '\\')
             AND (:email IS NULL OR  LOWER(s.email) LIKE LOWER(CONCAT('%', :email, '%')) ESCAPE '\\')
