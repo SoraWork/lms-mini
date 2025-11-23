@@ -18,5 +18,5 @@ public class EnrollmentCreateRequest {
     private Long studentId;
 
     @NotNull(message = "error.enrollment.courseIds.null")
-    private List<Long> courseIds;
+    private List<Long> courseIdsCreate;
 }

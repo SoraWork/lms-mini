@@ -21,7 +21,7 @@ public class EnrollmentController {
     @PostMapping
     public ResponseEntity<List<EnrollmentResponse>> enrollStudent(
             @RequestBody @Valid EnrollmentCreateRequest request) {
-        List<EnrollmentResponse> enrollmentResponse = enrollmentService.enrollStudent(request.getStudentId(), request.getCourseIds());
+        List<EnrollmentResponse> enrollmentResponse = enrollmentService.enrollStudent(request.getStudentId(), request.getCourseIdsCreate());
         return ResponseEntity.ok(enrollmentResponse);
     }
 
