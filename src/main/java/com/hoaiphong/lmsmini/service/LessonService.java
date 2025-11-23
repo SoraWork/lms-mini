@@ -14,7 +14,7 @@ public interface LessonService {
     CreateResponse<LessonCreateResponse> createLesson(LessonCreateRequest request);
 
 
-    LessonResponse updateLesson(Long id, LessonUpdateRequest request, List<MultipartFile> images, List<MultipartFile> videos);
+    LessonResponse updateLesson(Long id, LessonUpdateRequest request);
 
     boolean deleteLesson(Long id);
 }

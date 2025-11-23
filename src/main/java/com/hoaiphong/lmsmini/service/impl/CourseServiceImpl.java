@@ -45,31 +45,37 @@ public class CourseServiceImpl implements CourseService {
     private final VidMapper vidMapper;
 
     @Override
-    public CreateResponse<CourseCreateResponse> createCourse(CourseCreateRequest request, List<MultipartFile> images) {
-        if ( courseRepository.existsByCode(request.getCode()) ) {
+    public CreateResponse<CourseCreateResponse> createCourse(CourseCreateRequest request) {
+        if ( courseRepository.existsByCodeAndActiveStatus(request.getCode()) ) {
             throw new SomeThingWrongException("error.course.code.exists");
         }
 
         Course course = courseMapper.toEntity(request);
         course = courseRepository.save(course);
-        //Upload và tạo Image
-        List<Image> savedImages = new ArrayList<>();
-        if (images != null && !images.isEmpty()) {
-            for (MultipartFile file : images) {
-                String url = fileStorageServiceImpl.save(file);
+
+        Long courseId = course.getId();
+
+        List<String> imageUrls = request.getImages();
+
+        // 2) Lưu images từ URL FE gửi lên
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+
+            List<Image> savedImages = imageUrls.stream().map(url -> {
                 Image img = new Image();
-                img.setUrl(url);
-                img.setType("IMAGE");//thumbnail cua no
-                img.setObjectId(course.getId());
+                img.setUrl(url);              // FE đã upload lên Cloudinary trước
+                img.setType("IMAGE");
+                img.setObjectId(courseId);
                 img.setStatus("1");
-                savedImages.add(img);
-            }
+                return img;
+            }).collect(Collectors.toList());
+
             savedImages = imageRepository.saveAll(savedImages);
 
-            // Cập nhật imageIds trong course
+            // 3) Lưu imageIds vào Student
             String imageIds = savedImages.stream()
                     .map(img -> img.getId().toString())
                     .collect(Collectors.joining(","));
+
             course.setImageIds(imageIds);
             courseRepository.save(course);
         }
@@ -154,7 +160,7 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
-    public CourseResponse updateCourse(Long id, CourseUpdateRequest request, List<MultipartFile> images) {
+    public CourseResponse updateCourse(Long id, CourseUpdateRequest request) {
         // lấy course theo id và status = 1
         Course course = courseRepository.findCourseByIdAndActiveStatus(id)
                 .orElseThrow(() -> new SomeThingWrongException("error.course.id.notfound"));
@@ -180,21 +186,22 @@ public class CourseServiceImpl implements CourseService {
             imageRepository.saveAll(imagesToDelete);
         }
 
+        List<String> imageUrls = request.getImages();
         // them anh moi
-        if (images != null && !images.isEmpty()) {
-            List<Image> newImages = new ArrayList<>();
-            for (MultipartFile file : images) {
-                String url = fileStorageServiceImpl.save(file); // lưu file
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+
+            List<Image> savedImages = imageUrls.stream().map(url -> {
                 Image img = new Image();
                 img.setUrl(url);
                 img.setType("IMAGE");
-                img.setObjectId(course.getId());
+                img.setObjectId(id);
                 img.setStatus("1");
-                newImages.add(img);
-            }
-            newImages = imageRepository.saveAll(newImages);
+                return img;
+            }).collect(Collectors.toList());
+
+            savedImages = imageRepository.saveAll(savedImages);
             // Thêm id ảnh mới vào list
-            currentImageIds.addAll(newImages.stream().map(Image::getId).toList());
+            currentImageIds.addAll(savedImages.stream().map(Image::getId).toList());
         }
 
         //cap nhat lại list imgids
@@ -232,6 +239,17 @@ public class CourseServiceImpl implements CourseService {
     public boolean deleteCourse(Long id) {
         Course course = courseRepository.findCourseByIdAndActiveStatus(id)
                 .orElseThrow(() -> new SomeThingWrongException("error.course.id.notfound"));
+
+        Long activeEnrollCount = enrollmentRepository.countActiveByCourseId(id);
+        if (activeEnrollCount != null && activeEnrollCount > 0) {
+            throw new SomeThingWrongException("error.course.has.enrollments");
+        }
+        // Đếm xem đang có bao nhiêu bài học trong đây
+        Long activeLessonCount = lessonRepository.countActiveByCourseId(id);
+        // Nếu có thì không cho xóa
+        if (activeLessonCount != null && activeLessonCount > 0) {
+            throw new SomeThingWrongException("error.course.has.lessons");
+        }
         course.setStatus("0");
         courseRepository.save(course);
         return true;

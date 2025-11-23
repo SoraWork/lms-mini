@@ -24,4 +24,6 @@ public class CourseCreateRequest {
 
     private List<LessonCreateRequest> lessons;
 
+    private List<String> images;
+
 }

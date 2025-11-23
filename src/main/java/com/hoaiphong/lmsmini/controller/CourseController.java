@@ -45,9 +45,8 @@ public class CourseController {
 
     @PostMapping
     public CreateResponse<CourseCreateResponse> createCourse(
-            @Validated CourseCreateRequest courseCreateRequest,
-            @RequestParam(required = false, name = "images") List<MultipartFile> images) {
-        return courseService.createCourse(courseCreateRequest, images);
+            @Validated CourseCreateRequest courseCreateRequest) {
+        return courseService.createCourse(courseCreateRequest);
     }
 
     @GetMapping("/search")
@@ -64,10 +63,9 @@ public class CourseController {
     @PutMapping("/{id}")
     public ResponseEntity<CourseResponse> updateCourse(
             @PathVariable Long id,
-            @Valid @ModelAttribute CourseUpdateRequest request,
-            @RequestParam(required = false) List<MultipartFile> images
+            @Valid @ModelAttribute CourseUpdateRequest request
     ){
-        CourseResponse courseResponse = courseService.updateCourse(id, request, images);
+        CourseResponse courseResponse = courseService.updateCourse(id, request);
         return ResponseEntity.ok(courseResponse);
     }
 

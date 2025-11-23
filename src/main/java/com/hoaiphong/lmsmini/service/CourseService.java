@@ -12,7 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface CourseService {
-    CreateResponse<CourseCreateResponse> createCourse(CourseCreateRequest request, List<MultipartFile> images);
+    CreateResponse<CourseCreateResponse> createCourse(CourseCreateRequest request);
 
     PageResponse<CourseResponse> searchCourses(
             String name,
@@ -21,7 +21,7 @@ public interface CourseService {
             int size
     );
 
-    CourseResponse updateCourse(Long id, CourseUpdateRequest request, List<MultipartFile> images);
+    CourseResponse updateCourse(Long id, CourseUpdateRequest request);
 
     boolean deleteCourse(Long id);
 

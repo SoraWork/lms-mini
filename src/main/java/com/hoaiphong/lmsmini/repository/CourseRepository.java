@@ -17,6 +17,14 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     boolean existsByCodeAndIdNot(String code, Long id);
 
     @Query("""
+     SELECT COUNT(c) > 0
+     FROM Course c
+     WHERE c.status = '1'
+     AND (:code IS NULL OR c.code = :code)
+    """)
+    boolean existsByCodeAndActiveStatus(String code);
+
+    @Query("""
     SELECT c FROM Course c
     WHERE c.status = '1'
       AND (:ids IS NULL OR c.id IN :ids)

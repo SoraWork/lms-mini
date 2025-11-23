@@ -42,4 +42,12 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
         AND (:id IS NULL OR ls.id = :id)
     """)
     Optional<Lesson> findLessonByIdAndActiveStatus(@Param("id") Long id);
+
+    @Query("""
+    SELECT COUNT(l) 
+    FROM Lesson l 
+    WHERE l.course.id = :courseId 
+    AND l.status = '1'
+    """)
+    Long countActiveByCourseId(@Param("courseId") Long courseId);
 }

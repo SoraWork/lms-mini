@@ -48,64 +48,72 @@ public class LessonServiceImpl implements LessonService {
 
         for (LessonCreateRequest.LessonItem item : request.getLessons()) {
 
-            // MapStruct map cơ bản
+            // Map entity
             Lesson lesson = lessonMapper.toEntity(item);
             lesson.setCourse(course);
 
             lesson = lessonRepository.save(lesson);
+            Long lessonId = lesson.getId();
 
             List<Image> savedFiles = new ArrayList<>();
 
-            // Upload images
-            if (item.getImages() != null && !item.getImages().isEmpty()) {
-                for (MultipartFile file : item.getImages()) {
-                    String url = fileStorageServiceImpl.save(file);
-                    Image img = new Image();
-                    img.setUrl(url);
-                    img.setType("IMAGE");
-                    img.setObjectId(lesson.getId());
-                    img.setStatus("1");
-                    savedFiles.add(img);
-                }
+            // ẢNH
+            List<String> imageUrls = item.getImages();
+            if (imageUrls != null && !imageUrls.isEmpty()) {
+                List<Image> images = imageUrls.stream()
+                        .map(url -> {
+                            Image img = new Image();
+                            img.setUrl(url);
+                            img.setType("IMAGE");
+                            img.setObjectId(lessonId);
+                            img.setStatus("1");
+                            return img;
+                        })
+                        .toList();
+
+                savedFiles.addAll(images);
             }
 
-            // Upload videos
-            if (item.getVideos() != null && !item.getVideos().isEmpty()) {
-                for (MultipartFile file : item.getVideos()) {
-                    String url = fileStorageServiceImpl.save(file);
-                    Image vid = new Image();
-                    vid.setUrl(url);
-                    vid.setType("VID");
-                    vid.setObjectId(lesson.getId());
-                    vid.setStatus("1");
-                    savedFiles.add(vid);
-                }
+            // VIDEO
+            List<String> videoUrls = item.getVideos();
+            if (videoUrls != null && !videoUrls.isEmpty()) {
+                List<Image> videos = videoUrls.stream()
+                        .map(url -> {
+                            Image vid = new Image();
+                            vid.setUrl(url);
+                            vid.setType("VID");
+                            vid.setObjectId(lessonId);
+                            vid.setStatus("1");
+                            return vid;
+                        })
+                        .toList();
+
+                savedFiles.addAll(videos);
             }
 
-            // Save tất cả files và gán imageIds
+            // LƯU FILES VÀ GÁN ID VÀO LESSON
             if (!savedFiles.isEmpty()) {
                 savedFiles = imageRepository.saveAll(savedFiles);
+
                 String fileIds = savedFiles.stream()
                         .map(f -> f.getId().toString())
                         .collect(Collectors.joining(","));
+
                 lesson.setImageIds(fileIds);
                 lessonRepository.save(lesson);
             }
 
-            lessonIds.add(lesson.getId());
+            lessonIds.add(lessonId);
         }
 
         return new CreateResponse<>(200, "lesson.create.success", new LessonCreateResponse(lessonIds));
     }
 
-
     @Override
     @Transactional
     public LessonResponse updateLesson(
             Long id,
-            LessonUpdateRequest request,
-            List<MultipartFile> images,
-            List<MultipartFile> videos
+            LessonUpdateRequest request
     ) {
 
         // 1. Lấy lesson đang active
@@ -115,7 +123,7 @@ public class LessonServiceImpl implements LessonService {
         // 2. Update title
         lessonMapper.updateLesson(lesson, request);
 
-        // 3. Lấy danh sách ID hiện tại trong lesson.imageIds
+        // 3. Parse danh sách ID hiện tại
         List<Long> currentIds = new ArrayList<>();
 
         if (lesson.getImageIds() != null && !lesson.getImageIds().isBlank()) {
@@ -125,53 +133,41 @@ public class LessonServiceImpl implements LessonService {
                     .collect(Collectors.toList());
         }
 
-        // 4. XỬ LÝ UPDATE STATUS = 0
+        // 4. DISABLE IMAGE + VIDEO
 
         List<Long> disableImages = request.getImageIds() != null ? request.getImageIds() : List.of();
         List<Long> disableVideos = request.getVideoIds() != null ? request.getVideoIds() : List.of();
 
-        // 4.1 Disable IMAGE
+        // Disable IMAGE
         if (!disableImages.isEmpty()) {
             List<Image> imgs = imageRepository.findAllById(disableImages);
-
-            // validate: tất cả phải type=IMAGE
             for (Image i : imgs) {
                 if (!"IMAGE".equals(i.getType())) {
                     throw new SomeThingWrongException("error.file.type");
-                }
-                if (!i.getObjectId().equals(lesson.getId())) {
-                    throw new SomeThingWrongException("error.file");
                 }
                 i.setStatus("0");
             }
             imageRepository.saveAll(imgs);
         }
 
-        // 4.2 Disable VIDEO
+        // Disable VIDEO
         if (!disableVideos.isEmpty()) {
             List<Image> vids = imageRepository.findAllById(disableVideos);
-
-            // validate: tất cả phải VID
             for (Image v : vids) {
                 if (!"VID".equals(v.getType())) {
                     throw new SomeThingWrongException("error.file.type");
-                }
-                if (!v.getObjectId().equals(lesson.getId())) {
-                    throw new SomeThingWrongException("error.file");
                 }
                 v.setStatus("0");
             }
             imageRepository.saveAll(vids);
         }
 
-        // 5. UPLOAD MỚI
+        // 5. ADD NEW IMAGES / VIDEOS
         List<Image> newFiles = new ArrayList<>();
 
         // IMAGE mới
-        if (images != null && !images.isEmpty()) {
-            for (MultipartFile file : images) {
-                String url = fileStorageServiceImpl.save(file);
-
+        if (request.getImages() != null && !request.getImages().isEmpty()) {
+            for (String url : request.getImages()) {
                 Image img = new Image();
                 img.setUrl(url);
                 img.setType("IMAGE");
@@ -182,10 +178,8 @@ public class LessonServiceImpl implements LessonService {
         }
 
         // VIDEO mới
-        if (videos != null && !videos.isEmpty()) {
-            for (MultipartFile file : videos) {
-                String url = fileStorageServiceImpl.save(file);
-
+        if (request.getVideos() != null && !request.getVideos().isEmpty()) {
+            for (String url : request.getVideos()) {
                 Image vid = new Image();
                 vid.setUrl(url);
                 vid.setType("VID");
@@ -195,7 +189,7 @@ public class LessonServiceImpl implements LessonService {
             }
         }
 
-        // 6. Lưu file mới + append ID
+        // 6. Save file mới và merge ID
         if (!newFiles.isEmpty()) {
             List<Image> saved = imageRepository.saveAll(newFiles);
 
@@ -206,7 +200,7 @@ public class LessonServiceImpl implements LessonService {
             currentIds.addAll(addedIds);
         }
 
-        // 7. Set lại imageIds (bao gồm cả id đã disable)
+        // 7. Set lại danh sách ID vào lesson
         String merged = currentIds.stream()
                 .map(String::valueOf)
                 .collect(Collectors.joining(","));
@@ -216,31 +210,25 @@ public class LessonServiceImpl implements LessonService {
         // 8. Save lesson
         lessonRepository.save(lesson);
 
-        // 9. Convert sang response
+        // 9. Load lại file ACTIVE theo imageIds
         LessonResponse res = lessonMapper.toResponse(lesson);
 
-        //  Load lại ảnh và video ACTIVE để trả về (thay thế cho findById(lesson.getId()))
-        String idsStr = lesson.getImageIds();
         List<Image> activeFiles = Collections.emptyList();
 
-        if (idsStr != null && !idsStr.isBlank()) {
-            // 1. parse string "1,2,3" -> List<Long> ids
-            List<Long> ids = Arrays.stream(idsStr.split(","))
+        if (merged != null && !merged.isBlank()) {
+            List<Long> ids = Arrays.stream(merged.split(","))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
                     .map(Long::valueOf)
                     .collect(Collectors.toList());
 
             if (!ids.isEmpty()) {
-                // 2. lấy tất cả Image theo ids
                 List<Image> found = imageRepository.findAllById(ids);
 
-                // 3. giữ lại các file active = "1"
                 Map<Long, Image> activeMap = found.stream()
                         .filter(img -> "1".equals(img.getStatus()))
                         .collect(Collectors.toMap(Image::getId, img -> img));
 
-                // 4. giữ đúng order theo ids (bỏ các id không tồn tại / inactive)
                 activeFiles = ids.stream()
                         .map(activeMap::get)
                         .filter(Objects::nonNull)
@@ -248,17 +236,17 @@ public class LessonServiceImpl implements LessonService {
             }
         }
 
-        // 5. set images / videos vào response theo type
+        // Set images/videos vào response
         res.setImages(
                 activeFiles.stream()
-                        .filter(i -> "IMAGE".equalsIgnoreCase(i.getType()))
+                        .filter(i -> "IMAGE".equals(i.getType()))
                         .map(imageMapper::toResponse)
                         .collect(Collectors.toList())
         );
 
         res.setVideos(
                 activeFiles.stream()
-                        .filter(i -> "VID".equalsIgnoreCase(i.getType()))
+                        .filter(i -> "VID".equals(i.getType()))
                         .map(vidMapper::toResponse)
                         .collect(Collectors.toList())
         );

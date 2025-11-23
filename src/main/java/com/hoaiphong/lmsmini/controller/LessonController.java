@@ -22,7 +22,7 @@ public class LessonController {
 
     @PostMapping()
     public CreateResponse<LessonCreateResponse> createLesson(
-            @Valid  LessonCreateRequest lessonCreateRequest
+            @Valid @RequestBody LessonCreateRequest lessonCreateRequest
     ) {
         return lessonService.createLesson(lessonCreateRequest);
     }
@@ -30,11 +30,9 @@ public class LessonController {
     @PutMapping("/{id}")
     public ResponseEntity<LessonResponse> updateLesson(
             @PathVariable Long id,
-            @Valid LessonUpdateRequest request,
-            @RequestParam(required = false) List<MultipartFile> images,
-            @RequestParam(required = false) List<MultipartFile> videos
+            @Valid @RequestBody LessonUpdateRequest request
     ){
-        LessonResponse lessonResponse = lessonService.updateLesson(id, request, images, videos);
+        LessonResponse lessonResponse = lessonService.updateLesson(id, request);
         return ResponseEntity.ok(lessonResponse);
     }
     @DeleteMapping("/{id}")

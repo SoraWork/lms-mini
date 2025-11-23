@@ -23,8 +23,6 @@ public class LessonCreateRequest {
     @Positive(message = "error.lesson.courseId.positive")
     private Long courseId;
 
-    @NotNull(message = "error.lesson.list.null")
-    @Size(min = 1, message = "error.lesson.list.size")
     @Valid // validate các LessonItem
     private List<LessonItem> lessons;
 
@@ -38,8 +36,8 @@ public class LessonCreateRequest {
         @Size(min = 3, max = 255, message = "error.lesson.item.title.size")
         private String title;
 
-        List<MultipartFile> images;
+        List<String> images;
 
-        List<MultipartFile> videos;
+        List<String> videos;
     }
 }

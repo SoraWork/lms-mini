@@ -26,4 +26,6 @@ public class CourseUpdateRequest {
     private String code;
 
     private List<Long> deleteImageIds;
+
+    private List<String> images;
 }
