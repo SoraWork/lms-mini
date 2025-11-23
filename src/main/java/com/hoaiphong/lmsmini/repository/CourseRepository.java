@@ -1,6 +1,7 @@
 package com.hoaiphong.lmsmini.repository;
 
 import com.hoaiphong.lmsmini.entity.Course;
+import com.hoaiphong.lmsmini.entity.Student;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -75,4 +76,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     @Query("SELECT c FROM Course c WHERE c.id = :id AND c.status = '1'")
     Optional<Course> findByIdAndActiveStatus(@Param("id") Long id);
+
+    @Query("SELECT c FROM Course c WHERE c.status = '1'")
+    List<Course> findAllActiveCourses();
 }

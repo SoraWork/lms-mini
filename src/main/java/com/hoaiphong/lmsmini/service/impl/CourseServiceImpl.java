@@ -20,12 +20,20 @@ import com.hoaiphong.lmsmini.repository.ImageRepository;
 import com.hoaiphong.lmsmini.repository.LessonRepository;
 import com.hoaiphong.lmsmini.service.CourseService;
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -326,4 +334,42 @@ public class CourseServiceImpl implements CourseService {
                 imageMapper
         );
     }
+
+    @Override
+    public ByteArrayInputStream exportCoursesActive() throws IOException {
+        List<Course> courses = courseRepository.findAllActiveCourses();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Courses");
+
+            // Header
+            String[] columns = {"ID", "Name", "Code", "Image IDs", "Created At"};
+            Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < columns.length; i++) {
+                headerRow.createCell(i).setCellValue(columns[i]);
+            }
+
+            // Data
+            int rowIdx = 1;
+            for (Course c : courses) {
+                Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(c.getId());
+                row.createCell(1).setCellValue(c.getName());
+                row.createCell(2).setCellValue(c.getCode());
+                row.createCell(3).setCellValue(c.getImageIds() != null ? c.getImageIds() : "");
+                row.createCell(4).setCellValue(c.getCreatedAt() != null ? c.getCreatedAt().toString() : "");
+            }
+
+            // Auto size
+            for (int i = 0; i < columns.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(out);
+        }
+
+        return new ByteArrayInputStream(out.toByteArray());
+    }
+
 }

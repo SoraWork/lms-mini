@@ -56,5 +56,6 @@ public interface StudentRepository extends JpaRepository<Student,Long> {
             String name,
             String email
     );
-
+    @Query("SELECT s FROM Student s WHERE s.status = '1'")
+    List<Student> findAllActiveStudents();
 }

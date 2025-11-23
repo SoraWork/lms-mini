@@ -20,6 +20,10 @@ import com.hoaiphong.lmsmini.repository.ImageRepository;
 import com.hoaiphong.lmsmini.repository.StudentRepository;
 import com.hoaiphong.lmsmini.service.StudentService;
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +31,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -257,6 +264,41 @@ public class StudentServiceImpl implements StudentService {
         student.setStatus("0");
         studentRepository.save(student);
         return true;
+    }
+
+    @Override
+    public ByteArrayInputStream exportStudentsActive() throws IOException {
+        List<Student> students = studentRepository.findAllActiveStudents();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Students");
+
+            // Header
+            String[] columns = {"ID", "Name", "Email", "Image IDs", "Created At"};
+            Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < columns.length; i++) {
+                headerRow.createCell(i).setCellValue(columns[i]);
+            }
+
+            // Data
+            int rowIdx = 1;
+            for (Student s : students) {
+                Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(s.getId());
+                row.createCell(1).setCellValue(s.getName());
+                row.createCell(2).setCellValue(s.getEmail());
+                row.createCell(3).setCellValue(s.getImageIds() != null ? s.getImageIds() : "");
+                row.createCell(4).setCellValue(s.getCreatedAt() != null ? s.getCreatedAt().toString() : "");
+            }
+
+            // Auto size columns
+            for (int i = 0; i < columns.length; i++) sheet.autoSizeColumn(i);
+
+            workbook.write(out);
+        }
+
+        return new ByteArrayInputStream(out.toByteArray());
     }
 
 

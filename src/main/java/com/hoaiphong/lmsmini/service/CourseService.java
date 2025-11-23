@@ -9,6 +9,8 @@ import com.hoaiphong.lmsmini.dto.response.CourseDetailResponse;
 import com.hoaiphong.lmsmini.dto.response.CourseResponse;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.util.List;
 
 public interface CourseService {
@@ -26,4 +28,6 @@ public interface CourseService {
     boolean deleteCourse(Long id);
 
     CourseDetailResponse getCourseDetailById(Long id);
+
+    ByteArrayInputStream exportCoursesActive() throws IOException;
 }
