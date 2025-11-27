@@ -82,5 +82,26 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Enrollme
 """)
     Long countActiveByCourseId(@Param("courseId") Long courseId);
 
+    @Query("""
+    SELECT e.course.id 
+    FROM Enrollment e
+    WHERE e.student.id = :studentId
+      AND e.course.id IN :courseIds
+      AND e.status = '1'
+    """)
+    List<Long> findEnrolledCourseIds(
+            @Param("studentId") Long studentId,
+            @Param("courseIds") List<Long> courseIds
+    );
 
+    @Query("""
+    SELECT e FROM Enrollment e
+    WHERE e.student.id = :studentId
+      AND e.course.id IN :courseIds
+      AND e.status = '1'
+""")
+    List<Enrollment> findByStudentAndCourseIds(
+            @Param("studentId") Long studentId,
+            @Param("courseIds") List<Long> courseIds
+    );
 }

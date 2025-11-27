@@ -49,6 +49,7 @@ public class StudentServiceImpl implements StudentService {
     private final EnrollmentRepository enrollmentRepository;
 
     @Override
+    @Transactional
     public CreateResponse<StudentCreateResponse> createStudent(StudentCreateRequest request) {
         if (studentRepository.existsByEmail(request.getEmail())) {
             throw new SomeThingWrongException("error.student.email.exists");
@@ -252,6 +253,7 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
+    @Transactional
     public boolean deleteStudent(Long id) {
         Student student = studentRepository.findByIdAndActiveStatus(id)
                 .orElseThrow(() -> new SomeThingWrongException("error.student.id.notfound"));

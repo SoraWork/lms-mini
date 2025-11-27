@@ -53,6 +53,7 @@ public class CourseServiceImpl implements CourseService {
     private final VidMapper vidMapper;
 
     @Override
+    @Transactional
     public CreateResponse<CourseCreateResponse> createCourse(CourseCreateRequest request) {
         if ( courseRepository.existsByCodeAndActiveStatus(request.getCode()) ) {
             throw new SomeThingWrongException("error.course.code.exists");
@@ -244,6 +245,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public boolean deleteCourse(Long id) {
         Course course = courseRepository.findCourseByIdAndActiveStatus(id)
                 .orElseThrow(() -> new SomeThingWrongException("error.course.id.notfound"));

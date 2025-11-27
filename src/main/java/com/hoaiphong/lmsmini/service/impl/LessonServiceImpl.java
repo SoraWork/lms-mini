@@ -258,6 +258,7 @@ public class LessonServiceImpl implements LessonService {
 
 
     @Override
+    @Transactional
     public boolean deleteLesson(Long id) {
         Lesson lesson = lessonRepository.findLessonByIdAndActiveStatus(id)
                 .orElseThrow(() -> new SomeThingWrongException("error.lesson.id.notfound"));

@@ -51,21 +51,32 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         if (courses.size() != (courseIds == null ? 0 : courseIds.size())) {
             throw new SomeThingWrongException("error.course.code.notfound");
         }
+        // 3. Check enrollment tồn tại CHỈ 1 QUERY
+        List<Long> enrolledCourseIds =
+                enrollmentRepository.findEnrolledCourseIds(studentId, courseIds);
+
+        if (!enrolledCourseIds.isEmpty()) {
+            throw new SomeThingWrongException("error.enrollment.id.exists");
+        }
+
+        List<Enrollment> enrollmentsToSave = courses.stream()
+                .map(course -> enrollmentMapper.toEntity(student, course, "1"))
+                .toList();
 
         // Kiểm tra đã enroll hay chưa và tạo danh sách enroll
-        List<Enrollment> enrollmentsToSave = new ArrayList<>();
-        for (Course course : courses) {
-            boolean exists = enrollmentRepository
-                    .existsByStudentIdAndCourseIdAndActiveStatus(studentId, course.getId());
-
-            if (exists) {
-                throw new SomeThingWrongException("error.enrollment.id.exists");
-            }
-
-            Enrollment e = enrollmentMapper.toEntity(student, course, "1");
-
-            enrollmentsToSave.add(e);
-        }
+//        List<Enrollment> enrollmentsToSave = new ArrayList<>();
+//        for (Course course : courses) {
+//            boolean exists = enrollmentRepository
+//                    .existsByStudentIdAndCourseIdAndActiveStatus(studentId, course.getId());
+//
+//            if (exists) {
+//                throw new SomeThingWrongException("error.enrollment.id.exists");
+//            }
+//
+//            Enrollment e = enrollmentMapper.toEntity(student, course, "1");
+//
+//            enrollmentsToSave.add(e);
+//        }
         List<Enrollment> saved = enrollmentRepository.saveAll(enrollmentsToSave);
 
         return saved.stream()
@@ -86,69 +97,92 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
         List<EnrollmentResponse> results = new ArrayList<>();
 
-        // 1) DELETE nếu có
+         // DELETE (BATCH)
         if (courseIdsDelete != null && !courseIdsDelete.isEmpty()) {
-            List<Course> coursesToDelete = courseRepository.findAllByIdInAndActiveStatus(courseIdsDelete);
+
+            List<Course> coursesToDelete =
+                    courseRepository.findAllByIdInAndActiveStatus(courseIdsDelete);
+
             if (coursesToDelete.size() != courseIdsDelete.size()) {
                 throw new SomeThingWrongException("error.course.code.notfound");
             }
-            for (Long courseId : courseIdsDelete) {
-                Enrollment enrollment = enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId);
 
-                if (enrollment != null && "1".equals(enrollment.getStatus())) {
-                    enrollment.setStatus("0");
-                    enrollmentRepository.save(enrollment);
-                }
+            //1 query lấy toàn bộ enroll cần delete
+            List<Enrollment> enrollmentsToDelete =
+                    enrollmentRepository.findByStudentAndCourseIds(studentId, courseIdsDelete);
 
-                if (enrollment != null) {
-                    results.add(new EnrollmentResponse(
-                            studentId,
-                            courseId,
-                            enrollment.getStatus(),
-                            enrollment.getCreatedAt(),
-                            enrollment.getUpdatedAt()
-                    ));
+            for (Enrollment e : enrollmentsToDelete) {
+                if ("1".equals(e.getStatus())) {
+                    e.setStatus("0");
                 }
+            }
+
+            // save batch
+            enrollmentRepository.saveAll(enrollmentsToDelete);
+
+            for (Enrollment e : enrollmentsToDelete) {
+                results.add(new EnrollmentResponse(
+                        studentId,
+                        e.getCourse().getId(),
+                        e.getStatus(),
+                        e.getCreatedAt(),
+                        e.getUpdatedAt()
+                ));
             }
         }
 
-        // 2) CREATE nếu có
+        //  CREATE / RE-ACTIVATE (BATCH)
         if (courseIdsCreate != null && !courseIdsCreate.isEmpty()) {
+
+            //  Validate course tồn tại
+            List<Course> coursesToCreate =
+                    courseRepository.findAllByIdInAndActiveStatus(courseIdsCreate);
+
+            if (coursesToCreate.size() != courseIdsCreate.size()) {
+                throw new SomeThingWrongException("error.course.code.notfound");
+            }
+
+            //  Lấy toàn bộ enrollment đã tồn tại
+            List<Enrollment> existingEnrollments =
+                    enrollmentRepository.findByStudentAndCourseIds(studentId, courseIdsCreate);
+
+            Map<Long, Enrollment> enrollmentMap = existingEnrollments.stream()
+                    .collect(Collectors.toMap(e -> e.getCourse().getId(), e -> e));
+
+            List<Enrollment> enrollmentsToSave = new ArrayList<>();
+
             for (Long courseId : courseIdsCreate) {
-                Enrollment existing = enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId);
+
+                Enrollment existing = enrollmentMap.get(courseId);
 
                 if (existing != null) {
+                    //  Reactivate
                     if ("0".equals(existing.getStatus())) {
-                        // reactivate
                         existing.setStatus("1");
-                        enrollmentRepository.save(existing);
                     }
-                    // nếu đang active
-                    results.add(new EnrollmentResponse(
-                            studentId,
-                            courseId,
-                            existing.getStatus(),
-                            existing.getCreatedAt(),
-                            existing.getUpdatedAt()
-                    ));
-                    continue;
+                    enrollmentsToSave.add(existing);
+                } else {
+                    //  Tạo mới
+                    Enrollment newEnrollment = new Enrollment();
+                    newEnrollment.setId(new EnrollmentId(studentId, courseId));
+                    newEnrollment.setStatus("1");
+                    newEnrollment.setStudent(student);
+                    newEnrollment.setCourse(courseRepository.getReferenceById(courseId));
+
+                    enrollmentsToSave.add(newEnrollment);
                 }
+            }
 
-                // chưa tồn tại
-                Enrollment newEnrollment = new Enrollment();
-                newEnrollment.setId(new EnrollmentId(studentId, courseId));
-                newEnrollment.setStatus("1");
-                newEnrollment.setStudent(studentRepository.getReferenceById(studentId));
-                newEnrollment.setCourse(courseRepository.getReferenceById(courseId));
+            //  save batch
+            enrollmentRepository.saveAll(enrollmentsToSave);
 
-                enrollmentRepository.save(newEnrollment);
-
+            for (Enrollment e : enrollmentsToSave) {
                 results.add(new EnrollmentResponse(
                         studentId,
-                        courseId,
-                        "1",
-                        newEnrollment.getCreatedAt(),
-                        newEnrollment.getUpdatedAt()
+                        e.getCourse().getId(),
+                        e.getStatus(),
+                        e.getCreatedAt(),
+                        e.getUpdatedAt()
                 ));
             }
         }
