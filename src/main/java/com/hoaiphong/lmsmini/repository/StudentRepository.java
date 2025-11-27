@@ -23,9 +23,16 @@ public interface StudentRepository extends JpaRepository<Student,Long> {
       AND (:id IS NULL OR s.id = :id)
 """)
     Optional<Student> findByIdAndActiveStatus(@Param("id") Long id);
-    @Query("""
+    @Query(
+        value = """
         SELECT s FROM Student s
         WHERE s.status = '1'
+            AND (:name IS NULL OR  LOWER(s.name) LIKE LOWER(CONCAT('%', :name, '%')) ESCAPE '\\')
+            AND (:email IS NULL OR  LOWER(s.email) LIKE LOWER(CONCAT('%', :email, '%')) ESCAPE '\\')
+    """,
+    countQuery = """
+            SELECT COUNT(s) FROM Student s
+            WHERE s.status = '1'
             AND (:name IS NULL OR  LOWER(s.name) LIKE LOWER(CONCAT('%', :name, '%')) ESCAPE '\\')
             AND (:email IS NULL OR  LOWER(s.email) LIKE LOWER(CONCAT('%', :email, '%')) ESCAPE '\\')
     """)

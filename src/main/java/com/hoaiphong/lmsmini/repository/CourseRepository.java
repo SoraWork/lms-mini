@@ -39,11 +39,17 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     """)
     Optional<Course> findCourseByIdAndActiveStatus(@Param("id") Long id);
 
-    @Query("""
+    @Query(value = """
     SELECT c FROM Course c
     WHERE c.status = '1'
          AND (:name IS NULL OR  LOWER(c.name) LIKE LOWER(CONCAT('%', :name, '%')) ESCAPE '\\')
-            AND (:code IS NULL OR  LOWER(c.code) LIKE LOWER(CONCAT('%', :code, '%')) ESCAPE '\\')
+         AND (:code IS NULL OR  LOWER(c.code) LIKE LOWER(CONCAT('%', :code, '%')) ESCAPE '\\')
+    """,
+    countQuery = """
+    SELECT COUNT(c) FROM Course c
+    WHERE c.status = '1'
+          AND (:name IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :name, '%')) ESCAPE '\\')
+          AND (:code IS NULL OR LOWER(c.code) LIKE LOWER(CONCAT('%', :code, '%')) ESCAPE '\\')
     """)
     Page<Course> searchCourses(
             String name,

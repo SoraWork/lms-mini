@@ -25,6 +25,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -95,57 +96,79 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public PageResponse<CourseResponse> searchCourses(String name, String code, int page, int size) {
+
         name = escapeLike(name);
         code = escapeLike(code);
 
         Pageable pageable = PageRequest.of(page, size);
 
-        //Lấy dữ liệu page hiện tại
-        List<Course> courses = courseRepository.searchCoursesList(name, code, pageable);
+        //  CHỈ 1 QUERY: VỪA LẤY DATA, VỪA COUNT
+        Page<Course> coursePage =
+                courseRepository.searchCourses(name, code, pageable);
 
-        // COUNT chính xác
-        Long total = courseRepository.countCourses(name, code);
-
-        // Tính toán pagination giống Page
-        int totalPages = (int) Math.ceil((double) total / size);
-        boolean hasNext = page + 1 < totalPages;
-        boolean hasPrevious = page > 0;
+        List<Course> courses = coursePage.getContent();
 
         if (courses.isEmpty()) {
-            return new PageResponse<>(List.of(), new PageResponse.Pagination(
-                    page,
-                    size,
-                    total,
-                    totalPages,
-                    hasNext,
-                    hasPrevious
-            ));
+            return new PageResponse<>(
+                    List.of(),
+                    new PageResponse.Pagination(
+                            coursePage.getNumber(),
+                            coursePage.getSize(),
+                            coursePage.getTotalElements(),
+                            coursePage.getTotalPages(),
+                            coursePage.hasNext(),
+                            coursePage.hasPrevious()
+                    )
+            );
         }
 
-        // Tập hợp tất cả imageIds từ courses
+        // IMAGE
         List<Long> allImageIds = courses.stream()
-                .flatMap(c -> Arrays.stream(Optional.ofNullable(c.getImageIds()).orElse("").split(",")))
+                .flatMap(c -> Arrays.stream(
+                        Optional.ofNullable(c.getImageIds()).orElse("").split(",")))
                 .filter(s -> !s.isBlank())
                 .map(Long::valueOf)
                 .toList();
 
-        // Lấy tất cả images active
-        List<Image> allImages = allImageIds.isEmpty() ? List.of() : imageRepository.findByIds(allImageIds)
-                .stream().filter(img -> "1".equals(img.getStatus())).toList();
+        List<Image> allImages = allImageIds.isEmpty()
+                ? List.of()
+                : imageRepository.findByIds(allImageIds)
+                .stream()
+                .filter(img -> "1".equals(img.getStatus()))
+                .toList();
 
-        //  Lấy enrollments và lessons count
-        List<Long> courseIds = courses.stream().map(Course::getId).toList();
-        Map<Long, Long> enrollmentsMap = enrollmentRepository.countByCourseIds(courseIds).stream()
-                .collect(Collectors.toMap(CountDTO::getCourseId, CountDTO::getCount));
-        Map<Long, Long> lessonsMap = lessonRepository.countByCourseIds(courseIds).stream()
-                .collect(Collectors.toMap(CountDTO::getCourseId, CountDTO::getCount));
+        //  ENROLLMENTS & LESSONS COUNT
+        List<Long> courseIds = courses.stream()
+                .map(Course::getId)
+                .toList();
 
-        // Map Course → CourseResponse
+        Map<Long, Long> enrollmentsMap =
+                enrollmentRepository.countByCourseIds(courseIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                CountDTO::getCourseId,
+                                CountDTO::getCount
+                        ));
+
+        Map<Long, Long> lessonsMap =
+                lessonRepository.countByCourseIds(courseIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                CountDTO::getCourseId,
+                                CountDTO::getCount
+                        ));
+
+        // MAP COURSE → COURSE RESPONSE
         List<CourseResponse> courseResponses = courses.stream().map(course -> {
-            List<Image> courseImgs = Arrays.stream(Optional.ofNullable(course.getImageIds()).orElse("").split(","))
+
+            List<Image> courseImgs = Arrays.stream(
+                            Optional.ofNullable(course.getImageIds())
+                                    .orElse("")
+                                    .split(","))
                     .filter(s -> !s.isBlank())
                     .map(Long::valueOf)
-                    .flatMap(id -> allImages.stream().filter(img -> img.getId().equals(id)))
+                    .flatMap(id -> allImages.stream()
+                            .filter(img -> img.getId().equals(id)))
                     .toList();
 
             return courseMapper.toResponse(
@@ -157,14 +180,18 @@ public class CourseServiceImpl implements CourseService {
             );
         }).toList();
 
-        return new PageResponse<>(courseResponses, new PageResponse.Pagination(
-                page,
-                size,
-                total,
-                totalPages,
-                hasNext,
-                hasPrevious
-        ));
+        // LẤY PAGINATION TRỰC TIẾP TỪ Page
+        return new PageResponse<>(
+                courseResponses,
+                new PageResponse.Pagination(
+                        coursePage.getNumber(),
+                        coursePage.getSize(),
+                        coursePage.getTotalElements(),
+                        coursePage.getTotalPages(),
+                        coursePage.hasNext(),
+                        coursePage.hasPrevious()
+                )
+        );
     }
 
     @Override

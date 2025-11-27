@@ -98,55 +98,67 @@ public class StudentServiceImpl implements StudentService {
 
         Pageable pageable = PageRequest.of(page, size);
         //Lấy dữ liệu page hiện tại
-        List<Student> students = studentRepository.searchStudentsList(name, email, pageable);
+        Page<Student> studentPage  = studentRepository.searchStudents(name, email, pageable);
 
-        // COUNT chính xác
-        Long total = studentRepository.countStudents(name, email);
-
-        // Tính toán pagination giống Page
-        int totalPages = (int) Math.ceil((double) total / size);
-        boolean hasNext = page + 1 < totalPages;
-        boolean hasPrevious = page > 0;
+        List<Student> students = studentPage.getContent();
 
         if (students.isEmpty()) {
-            return new PageResponse<>(List.of(), new PageResponse.Pagination(
-                    page,
-                    size,
-                    total,
-                    totalPages,
-                    hasNext,
-                    hasPrevious
-            ));
+            return new PageResponse<>(
+                    List.of(),
+                    new PageResponse.Pagination(
+                            studentPage.getNumber(),
+                            studentPage.getSize(),
+                            studentPage.getTotalElements(),
+                            studentPage.getTotalPages(),
+                            studentPage.hasNext(),
+                            studentPage.hasPrevious()
+                    )
+            );
         }
 
-        //Tập hợp tất cả imageIds từ students
+        // IMAGE
         List<Long> allImageIds = students.stream()
-                .flatMap(s -> Arrays.stream(Optional.ofNullable(s.getImageIds()).orElse("").split(",")))
+                .flatMap(s -> Arrays.stream(
+                        Optional.ofNullable(s.getImageIds()).orElse("").split(",")))
                 .filter(str -> !str.isBlank())
                 .map(Long::valueOf)
                 .toList();
 
-        // Lấy tất cả ảnh/video theo ids
-        List<Image> allImages = allImageIds.isEmpty() ? List.of() : imageRepository.findByIds(allImageIds);
+        List<Image> allImages = allImageIds.isEmpty()
+                ? List.of()
+                : imageRepository.findByIds(allImageIds);
 
-        // Lấy enrollments + course
-        List<Long> studentIds = students.stream().map(Student::getId).toList();
-        List<Enrollment> enrollments = enrollmentRepository.findByStudentIdIn(studentIds);
+        // ENROLLMENT
+        List<Long> studentIds = students.stream()
+                .map(Student::getId)
+                .toList();
+
+        List<Enrollment> enrollments =
+                enrollmentRepository.findByStudentIdIn(studentIds);
+
         Map<Long, List<Enrollment>> enrollmentsMap = enrollments.stream()
-                .collect(Collectors.groupingBy(e -> e.getStudent().getId()));
+                .collect(Collectors.groupingBy(
+                        e -> e.getStudent().getId()
+                ));
 
-        //  Map từng student → StudentResponse
+        //  MAP RESPONSE
         List<StudentResponse> studentResponses = students.stream().map(student -> {
-            List<Long> studentImageIds = Arrays.stream(Optional.ofNullable(student.getImageIds()).orElse("").split(","))
+
+            List<Long> studentImageIds = Arrays.stream(
+                            Optional.ofNullable(student.getImageIds())
+                                    .orElse("")
+                                    .split(","))
                     .filter(s -> !s.isBlank())
                     .map(Long::valueOf)
                     .toList();
 
             List<Image> studentImages = allImages.stream()
-                    .filter(img -> studentImageIds.contains(img.getId()) && "1".equals(img.getStatus()))
+                    .filter(img -> studentImageIds.contains(img.getId())
+                            && "1".equals(img.getStatus()))
                     .toList();
 
-            List<Enrollment> studentEnrollments = enrollmentsMap.getOrDefault(student.getId(), List.of());
+            List<Enrollment> studentEnrollments =
+                    enrollmentsMap.getOrDefault(student.getId(), List.of());
 
             StudentResponse response = studentMapper.toResponse(
                     student,
@@ -155,28 +167,29 @@ public class StudentServiceImpl implements StudentService {
                     imageMapper
             );
 
-            // Map courses summary
-            response.setCourses(studentEnrollments.stream()
-                    .map(e -> new CourseSummaryResponse(
-                            e.getCourse().getId(),
-                            e.getCourse().getName(),
-                            e.getCourse().getCode()
-                    ))
-                    .toList()
+            response.setCourses(
+                    studentEnrollments.stream()
+                            .map(e -> new CourseSummaryResponse(
+                                    e.getCourse().getId(),
+                                    e.getCourse().getName(),
+                                    e.getCourse().getCode()
+                            ))
+                            .toList()
             );
 
             return response;
         }).toList();
 
+        // LẤY PAGINATION TRỰC TIẾP TỪ Page
         return new PageResponse<>(
                 studentResponses,
                 new PageResponse.Pagination(
-                        page,
-                        size,
-                        total,
-                        totalPages,
-                        hasNext,
-                        hasPrevious
+                        studentPage.getNumber(),
+                        studentPage.getSize(),
+                        studentPage.getTotalElements(),
+                        studentPage.getTotalPages(),
+                        studentPage.hasNext(),
+                        studentPage.hasPrevious()
                 )
         );
     }
